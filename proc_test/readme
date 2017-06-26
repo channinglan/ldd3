@@ -1,0 +1,7 @@
+Example 1: Use create_proc_entry to create a proc file (simple, but write the risk of a buffer overflow);
+
+Example 2: use proc_create and seq_file create proc file (more simple Example 3);
+
+Example 3: use proc_create_data and seq_file create proc file (more trouble, but more complete);
+
+Example 4: Use an example of a kernel list in the proc file (Example 3).
