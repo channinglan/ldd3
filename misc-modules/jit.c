@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-
+#include <linux/version.h>	//fix warning: "LINUX_VERSION_CODE"
 #include <linux/time.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
@@ -26,7 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-
+#include <linux/slab.h>	//fix error: implicit declaration of function ‘kmalloc’
 #include <asm/hardirq.h>
 
 /*
