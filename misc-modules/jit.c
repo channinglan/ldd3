@@ -28,7 +28,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>	//fix error: implicit declaration of function ‘kmalloc’
 #include <asm/hardirq.h>
-
+#include <linux/seq_file.h>	//fix error: implicit declaration of function ‘create_proc_read_entry’
 /*
  * This module is a silly one: it only embeds short code fragments
  * that show how time delays can be handled in the kernel.
@@ -57,9 +57,14 @@ enum jit_files {
  * This function prints one line of data, after sleeping one second.
  * It can sleep in different ways, according to the data pointer
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jit_fn(struct seq_file *m, void *v)
+#else
 int jit_fn(char *buf, char **start, off_t offset,
 	      int len, int *eof, void *data)
+#endif
 {
+#if 0
 	unsigned long j0, j1; /* Jiffies. */
 	wait_queue_head_t wait;
 
@@ -90,19 +95,30 @@ int jit_fn(char *buf, char **start, off_t offset,
 	len = sprintf(buf, "%9li %9li\n", j0, j1);
 	*start = buf;
 	return len;
+
+#else
+	return 0;
+#endif
 }
 
 /*
  * This file, on the other hand, returns the current time forever.
  */
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jit_currentime(struct seq_file *m, void *v)
+#else
 int jit_currentime(char *buf, char **start, off_t offset,
                    int len, int *eof, void *data)
+#endif
 {
+
+#if 0 
 	struct timeval tv1;
 	struct timespec tv2;
 	unsigned long j1;
 	u64 j2;
-
+	int len;
 	/* Get the time in 4 different ways. */
 	j1 = jiffies;
 	j2 = get_jiffies_64();
@@ -118,6 +134,9 @@ int jit_currentime(char *buf, char **start, off_t offset,
 		       (int)tv2.tv_sec, (int)tv2.tv_nsec);
 	*start = buf;
 	return len;
+#else
+	return 0;
+#endif
 }
 
 /*
@@ -154,9 +173,14 @@ void jit_timer_fn(unsigned long arg)
 }
 
 /* the /proc function: allocate everything to allow concurrency. */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jit_timer(struct seq_file *m, void *v)
+#else
 int jit_timer(char *buf, char **start, off_t offset,
 	      int len, int *eof, void *unused_data)
+#endif
 {
+#if 0
 	struct jit_data *data;
 	char *buf2 = buf;
 	unsigned long j = jiffies;
@@ -193,6 +217,9 @@ int jit_timer(char *buf, char **start, off_t offset,
 	kfree(data);
 	*eof = 1;
 	return buf2 - buf;
+#else
+	return 0;
+#endif
 }
 
 void jit_tasklet_fn(unsigned long arg)
@@ -215,9 +242,14 @@ void jit_tasklet_fn(unsigned long arg)
 }
 
 /* The /proc function: allocate everything to allow concurrency. */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jit_tasklet(struct seq_file *m, void *v)
+#else
 int jit_tasklet(char *buf, char **start, off_t offset,
 	      int len, int *eof, void *arg)
+#endif
 {
+#if 0
 	struct jit_data *data;
 	char *buf2 = buf;
 	unsigned long j = jiffies;
@@ -257,12 +289,80 @@ int jit_tasklet(char *buf, char **start, off_t offset,
 	kfree(data);
 	*eof = 1;
 	return buf2 - buf;
+#else
+	return 0;
+#endif
 }
 
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+/*
+ * jit_currentime wrappers for procfile show routines.
+ */
+static int jit_currentime_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jit_currentime, PDE_DATA(inode));
+}
 
+static const struct file_operations jit_currentime_proc_fops = {
+	.open		= jit_currentime_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/*
+ * jit_fn wrappers for procfile show routines.
+ */
+static int jit_fn_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jit_fn, PDE_DATA(inode));
+}
+
+static const struct file_operations jit_fn_proc_fops = {
+	.open		= jit_fn_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
+/*
+ * jit_timer wrappers for procfile show routines.
+ */
+static int jit_timer_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jit_timer, PDE_DATA(inode));
+}
+
+static const struct file_operations jit_timer_proc_fops = {
+	.open		= jit_timer_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/*
+ * jit_tasklet wrappers for procfile show routines.
+ */
+static int jit_tasklet_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jit_tasklet, PDE_DATA(inode));
+}
+
+static const struct file_operations jit_tasklet_proc_fops = {
+	.open		= jit_tasklet_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
+
+#endif
 static int __init jit_init(void)
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
 	create_proc_read_entry("currentime", 0, NULL, jit_currentime, NULL);
 	create_proc_read_entry("jitbusy", 0, NULL, jit_fn, (void *)JIT_BUSY);
 	create_proc_read_entry("jitsched",0, NULL, jit_fn, (void *)JIT_SCHED);
@@ -272,6 +372,18 @@ static int __init jit_init(void)
 	create_proc_read_entry("jitimer", 0, NULL, jit_timer, NULL);
 	create_proc_read_entry("jitasklet", 0, NULL, jit_tasklet, NULL);
 	create_proc_read_entry("jitasklethi", 0, NULL, jit_tasklet, (void *)1);
+
+#else
+	proc_create_data("currentime"	, 0, NULL, &jit_currentime_proc_fops, NULL);
+	proc_create_data("jitbusy"	, 0, NULL, &jit_fn_proc_fops, (void *)JIT_BUSY);
+	proc_create_data("jitsched"	, 0, NULL, &jit_fn_proc_fops, (void *)JIT_SCHED);
+	proc_create_data("jitqueue"	, 0, NULL, &jit_fn_proc_fops, (void *)JIT_QUEUE);
+	proc_create_data("jitschedto"	, 0, NULL, &jit_fn_proc_fops, (void *)JIT_SCHEDTO);
+
+	proc_create_data("jitimer"	, 0, NULL, &jit_timer_proc_fops, NULL);
+	proc_create_data("jitasklet"	, 0, NULL, &jit_tasklet_proc_fops, NULL);
+	proc_create_data("jitasklethi"	, 0, NULL, &jit_tasklet_proc_fops, (void *)1);
+#endif
 
 	return 0; /* Success. */
 }

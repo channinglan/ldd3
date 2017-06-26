@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-
+#include <linux/version.h>	//fix warning: "LINUX_VERSION_CODE"
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>     /* everything... */
@@ -26,7 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/preempt.h>
 #include <linux/interrupt.h> /* tasklets */
-
+#include <linux/seq_file.h>	//fix error: implicit declaration of function
 MODULE_LICENSE("Dual BSD/GPL");
 
 /*
@@ -125,10 +125,14 @@ static void jiq_print_wq_delayed(struct work_struct *work)
     
 	schedule_delayed_work(&jiq_data.jiq_delayed_work, data->delay);
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jiq_read_wq(struct seq_file *m, void *v)
+#else
 static int jiq_read_wq(char *buf, char **start, off_t offset,
                    int len, int *eof, void *data)
+#endif
 {
+#if 0
 	DEFINE_WAIT(wait);
 	
 	jiq_data.len = 0;                /* nothing printed, yet */
@@ -143,12 +147,19 @@ static int jiq_read_wq(char *buf, char **start, off_t offset,
 
 	*eof = 1;
 	return jiq_data.len;
+#else
+	return 0;
+#endif
 }
 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jiq_read_wq_delayed(struct seq_file *m, void *v)
+#else
 static int jiq_read_wq_delayed(char *buf, char **start, off_t offset,
                    int len, int *eof, void *data)
+#endif
 {
+#if 0
 	DEFINE_WAIT(wait);
 	
 	jiq_data.len = 0;                /* nothing printed, yet */
@@ -163,6 +174,9 @@ static int jiq_read_wq_delayed(char *buf, char **start, off_t offset,
 
 	*eof = 1;
 	return jiq_data.len;
+#else
+	return 0;
+#endif
 }
 
 
@@ -178,10 +192,14 @@ static void jiq_print_tasklet(unsigned long ptr)
 }
 
 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jiq_read_tasklet(struct seq_file *m, void *v)
+#else
 static int jiq_read_tasklet(char *buf, char **start, off_t offset, int len,
                 int *eof, void *data)
+#endif
 {
+#if 0
 	jiq_data.len = 0;                /* nothing printed, yet */
 	jiq_data.buf = buf;              /* print in this place */
 	jiq_data.jiffies = jiffies;      /* initial time */
@@ -191,6 +209,9 @@ static int jiq_read_tasklet(char *buf, char **start, off_t offset, int len,
 
 	*eof = 1;
 	return jiq_data.len;
+#else
+	return 0;
+#endif
 }
 
 
@@ -208,11 +229,14 @@ static void jiq_timedout(unsigned long ptr)
 	wake_up_interruptible(&jiq_wait);  /* awake the process */
 }
 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+static int jiq_read_run_timer(struct seq_file *m, void *v)
+#else
 static int jiq_read_run_timer(char *buf, char **start, off_t offset,
                    int len, int *eof, void *data)
+#endif
 {
-
+#if 0
 	jiq_data.len = 0;           /* prepare the argument for jiq_print() */
 	jiq_data.buf = buf;
 	jiq_data.jiffies = jiffies;
@@ -229,10 +253,77 @@ static int jiq_read_run_timer(char *buf, char **start, off_t offset,
     
 	*eof = 1;
 	return jiq_data.len;
+#else
+	return 0;
+#endif
 }
 
 
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+/*
+ * jiq_read_wq wrappers for procfile show routines.
+ */
+static int jiq_read_wq_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jiq_read_wq, PDE_DATA(inode));
+}
+
+static const struct file_operations jiq_read_wq_proc_fops = {
+	.open		= jiq_read_wq_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/*
+ * jiq_read_wq_delayed wrappers for procfile show routines.
+ */
+static int jiq_read_wq_delayed_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jiq_read_wq_delayed, PDE_DATA(inode));
+}
+
+static const struct file_operations jiq_read_wq_delayed_proc_fops = {
+	.open		= jiq_read_wq_delayed_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/*
+ * jiq_read_run_timer wrappers for procfile show routines.
+ */
+static int jiq_read_run_timer_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jiq_read_run_timer, PDE_DATA(inode));
+}
+
+static const struct file_operations jiq_read_run_timer_proc_fops = {
+	.open		= jiq_read_run_timer_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
+/*
+ * jiq_read_tasklet wrappers for procfile show routines.
+ */
+static int jiq_read_tasklet_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jiq_read_tasklet, PDE_DATA(inode));
+}
+
+static const struct file_operations jiq_read_tasklet_proc_fops = {
+	.open		= jiq_read_tasklet_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
+#endif
 /*
  * the init/clean material
  */
@@ -243,12 +334,20 @@ static int jiq_init(void)
 	/* this line is in jiq_init() */
         INIT_WORK(&jiq_data.jiq_work, jiq_print_wq);
         INIT_DELAYED_WORK(&jiq_data.jiq_delayed_work, jiq_print_wq_delayed);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
 	create_proc_read_entry("jiqwq", 0, NULL, jiq_read_wq, NULL);
 	create_proc_read_entry("jiqwqdelay", 0, NULL, jiq_read_wq_delayed, NULL);
 	create_proc_read_entry("jiqtimer", 0, NULL, jiq_read_run_timer, NULL);
 	create_proc_read_entry("jiqtasklet", 0, NULL, jiq_read_tasklet, NULL);
+#else
+	proc_create_data("jiqwq", 	0, NULL, &jiq_read_wq_proc_fops, NULL);
+	proc_create_data("jiqwqdelay",	0, NULL, &jiq_read_wq_delayed_proc_fops, NULL);
+	proc_create_data("jiqtimer",	0, NULL, &jiq_read_run_timer_proc_fops, NULL);
+	proc_create_data("jiqtasklet",	0, NULL, &jiq_read_tasklet_proc_fops, NULL);
 
+
+
+#endif
 	return 0; /* succeed */
 }
 
