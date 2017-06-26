@@ -10,7 +10,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-
+#include <linux/version.h>	//fix warning: "LINUX_VERSION_CODE"
 
 MODULE_AUTHOR("Jonathan Corbet");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -93,10 +93,13 @@ static struct file_operations ct_file_ops = {
 static int ct_init(void)
 {
 	struct proc_dir_entry *entry;
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
 	entry = create_proc_entry("sequence", 0, NULL);
 	if (entry)
 		entry->proc_fops = &ct_file_ops;
+#else
+        entry = proc_create("sequence", 0, NULL, &ct_file_ops);
+#endif
 	return 0;
 }
 
