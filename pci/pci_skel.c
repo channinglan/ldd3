@@ -1,4 +1,4 @@
-#include <linux/config.h>
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -24,7 +24,10 @@ static int probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Do probing type stuff here.  
 	 * Like calling request_region();
 	 */
-	pci_enable_device(dev);
+	if(pci_enable_device(dev)) {
+		dev_err(&dev->dev, "can't enable PCI device\n");
+		return -ENODEV;
+	}
 	
 	if (skel_get_revision(dev) == 0x42)
 		return -ENODEV;
